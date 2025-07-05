@@ -82,7 +82,7 @@ class _MovieScreenState extends State<MovieScreen> {
                 },
               )
             : const Text(
-                'Movies',
+                'Trending Movies',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
