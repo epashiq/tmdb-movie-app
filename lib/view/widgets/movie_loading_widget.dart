@@ -1,22 +1,28 @@
+
 import 'package:flutter/material.dart';
 
 class MovieLoadingWidget extends StatelessWidget {
-  const MovieLoadingWidget({super.key});
-
+  final String message;
+  
+  const MovieLoadingWidget({
+    super.key,
+    this.message = 'Loading movies...',
+  });
+  
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             color: Colors.orange,
             strokeWidth: 3,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
-            'Loading movies...',
-            style: TextStyle(
+            message,
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 16,
             ),

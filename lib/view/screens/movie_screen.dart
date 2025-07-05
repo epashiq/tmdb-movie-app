@@ -5,6 +5,7 @@ import 'package:tmdb_movie_app/view/widgets/movie_card_widget.dart';
 import 'package:tmdb_movie_app/view/widgets/movie_error_widget.dart';
 import 'package:tmdb_movie_app/view/widgets/movie_load_more_widget.dart';
 import 'package:tmdb_movie_app/view/widgets/movie_loading_widget.dart';
+import 'package:tmdb_movie_app/view/widgets/no_result_widget.dart';
 
 class MovieScreen extends StatefulWidget {
   const MovieScreen({super.key});
@@ -15,14 +16,16 @@ class MovieScreen extends StatefulWidget {
 
 class _MovieScreenState extends State<MovieScreen> {
   late ScrollController _scrollController;
+  late TextEditingController _searchController;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _searchController = TextEditingController();
     _scrollController.addListener(_onScroll);
 
-    // Fetch initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MovieProvider>().fetchTrendingMovies();
     });
@@ -31,14 +34,30 @@ class _MovieScreenState extends State<MovieScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      context.read<MovieProvider>().fetchTrendingMovies();
+      final provider = context.read<MovieProvider>();
+      if (provider.isSearchMode) {
+        provider.loadMoreSearchResults();
+      } else {
+        provider.fetchTrendingMovies();
+      }
     }
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchController.clear();
+        context.read<MovieProvider>().clearSearch();
+      }
+    });
   }
 
   @override
@@ -48,74 +67,143 @@ class _MovieScreenState extends State<MovieScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
-        title: const Text(
-          'Trending Movies',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Search movies...',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  context.read<MovieProvider>().onSearchChanged(value);
+                },
+              )
+            : const Text(
+                'Movies',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+        centerTitle: !_isSearching,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              context
-                  .read<MovieProvider>()
-                  .fetchTrendingMovies(isRefresh: true);
-            },
+            icon: Icon(
+              _isSearching ? Icons.close : Icons.search,
+              color: Colors.white,
+            ),
+            onPressed: _toggleSearch,
           ),
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              onPressed: () {
+                context
+                    .read<MovieProvider>()
+                    .fetchTrendingMovies(isRefresh: true);
+              },
+            ),
         ],
       ),
       body: Consumer<MovieProvider>(
         builder: (context, movieProvider, child) {
-          if (movieProvider.isLoading && movieProvider.movies.isEmpty) {
-            return const MovieLoadingWidget();
-          }
-
-          if (movieProvider.errorMessage != null &&
-              movieProvider.movies.isEmpty) {
-            return MovieErrorWidget(
-              errorMessage: movieProvider.errorMessage!,
-              onRetry: () => movieProvider.fetchTrendingMovies(isRefresh: true),
+          if (movieProvider.isCurrentlyLoading &&
+              movieProvider.currentMovies.isEmpty) {
+            return MovieLoadingWidget(
+              message: movieProvider.isSearchMode
+                  ? 'Searching movies...'
+                  : 'Loading movies...',
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () => movieProvider.fetchTrendingMovies(isRefresh: true),
-            backgroundColor: const Color(0xFF1A1A1A),
-            color: Colors.orange,
-            child: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                SliverPadding(
+          if (movieProvider.currentErrorMessage != null &&
+              movieProvider.currentMovies.isEmpty) {
+            return MovieErrorWidget(
+              errorMessage: movieProvider.currentErrorMessage!,
+              onRetry: () {
+                if (movieProvider.isSearchMode &&
+                    movieProvider.searchQuery.isNotEmpty) {
+                  movieProvider.searchMovies(movieProvider.searchQuery,
+                      isRefresh: true);
+                } else {
+                  movieProvider.fetchTrendingMovies(isRefresh: true);
+                }
+              },
+            );
+          }
+
+          if (movieProvider.currentMovies.isEmpty &&
+              movieProvider.isSearchMode) {
+            return const NoResultsWidget();
+          }
+
+          return Column(
+            children: [
+              if (movieProvider.isSearchMode)
+                Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.6,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (index < movieProvider.movies.length) {
-                          return MovieCard(movie: movieProvider.movies[index]);
-                        }
-                        return null;
-                      },
-                      childCount: movieProvider.movies.length,
+                  color: const Color(0xFF1A1A1A),
+                  child: Text(
+                    'Search results for "${movieProvider.searchQuery}"',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
                   ),
                 ),
-                if (movieProvider.isLoadingMore)
-                  const SliverToBoxAdapter(
-                    child: LoadMoreWidget(),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    if (movieProvider.isSearchMode &&
+                        movieProvider.searchQuery.isNotEmpty) {
+                      await movieProvider.searchMovies(
+                          movieProvider.searchQuery,
+                          isRefresh: true);
+                    } else {
+                      await movieProvider.fetchTrendingMovies(isRefresh: true);
+                    }
+                  },
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  color: Colors.orange,
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.all(16),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.6,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (index < movieProvider.currentMovies.length) {
+                                return MovieCard(
+                                    movie: movieProvider.currentMovies[index]);
+                              }
+                              return null;
+                            },
+                            childCount: movieProvider.currentMovies.length,
+                          ),
+                        ),
+                      ),
+                      if (movieProvider.isCurrentlyLoadingMore)
+                        const SliverToBoxAdapter(
+                          child: LoadMoreWidget(),
+                        ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           );
         },
       ),

@@ -6,9 +6,9 @@ import 'package:tmdb_movie_app/view/screens/movie_details_screen.dart';
 
 class MovieCard extends StatelessWidget {
   final MovieModel movie;
-  
+
   const MovieCard({super.key, required this.movie});
-  
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -58,7 +58,7 @@ class MovieCard extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               // Gradient Overlay
               Container(
                 decoration: BoxDecoration(
@@ -72,7 +72,7 @@ class MovieCard extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               // Movie Info
               Positioned(
                 bottom: 0,
@@ -112,6 +112,13 @@ class MovieCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      Text(
+                        movie.releaseDate,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      )
                     ],
                   ),
                 ),

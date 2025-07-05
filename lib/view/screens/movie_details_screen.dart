@@ -4,9 +4,9 @@ import 'package:tmdb_movie_app/model/movie_model.dart';
 
 class MovieDetailScreen extends StatelessWidget {
   final MovieModel movie;
-  
+
   const MovieDetailScreen({super.key, required this.movie});
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,7 +22,8 @@ class MovieDetailScreen extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   CachedNetworkImage(
-                    imageUrl: 'https://image.tmdb.org/t/p/w780${movie.backdropPath ?? movie.posterPath}',
+                    imageUrl:
+                        'https://image.tmdb.org/t/p/w780${movie.backdropPath}',
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
                       color: const Color(0xFF2A2A2A),
@@ -32,7 +33,8 @@ class MovieDetailScreen extends StatelessWidget {
                     ),
                     errorWidget: (context, url, error) => Container(
                       color: const Color(0xFF2A2A2A),
-                      child: const Icon(Icons.movie, color: Colors.grey, size: 64),
+                      child:
+                          const Icon(Icons.movie, color: Colors.grey, size: 64),
                     ),
                   ),
                   Container(
@@ -116,7 +118,7 @@ class MovieDetailScreen extends StatelessWidget {
 // Loading Widget
 class MovieLoadingWidget extends StatelessWidget {
   const MovieLoadingWidget({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
     return const Center(
